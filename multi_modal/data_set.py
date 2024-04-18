@@ -1,5 +1,6 @@
 import torch
 import open_clip
+import os
 
 from transformers import CLIPProcessor
 from PIL import Image
@@ -15,28 +16,30 @@ transform = transforms.Compose([
 model_name = "patrickjohncyh/fashion-clip"
 clip_processor = CLIPProcessor.from_pretrained(model_name)
 
-# model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k')
-# tokenizer = open_clip.get_tokenizer('ViT-B-32')
-#
-#
-# class CustomDatasetWithPreprocessor(Dataset):
-#     def __init__(self, item_no_list, image_paths, sentences, labels):
-#         self.item_no_list = item_no_list
-#         self.image_paths = image_paths
-#         self.sentences = tokenizer(sentences)
-#         self.labels = labels
-#
-#     def __len__(self):
-#         return len(self.image_paths)
-#
-#     def __getitem__(self, idx):
-#         filename = self.image_paths[idx].replace('https://img.29cm.co.kr', '').rpartition('/')[-1]
-#         image = Image.open(f'../data/product/images/{filename}').convert("RGB").resize((224, 224))
-#
-#         image = preprocess(Image.open(image))
-#         sentence = self.sentences[idx]
-#
-#         return self.item_no_list[idx], image, sentence, torch.tensor(self.labels[idx], dtype=torch.long)
+_, _, preprocess = open_clip.create_model_and_transforms('ViT-B-32', pretrained='laion2b_s34b_b79k')
+tokenizer = open_clip.get_tokenizer('ViT-B-32')
+
+image_dir_path = os.path.join(os.getcwd(), f"../../data/product/images")
+
+
+class CustomDatasetWithPreprocessor(Dataset):
+    def __init__(self, item_no_list, image_paths, sentences, labels):
+        self.item_no_list = item_no_list
+        self.image_paths = image_paths
+        self.sentences = tokenizer(sentences)
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        filename = self.image_paths[idx].replace('https://img.29cm.co.kr', '').rpartition('/')[-1]
+        image = Image.open(f"{image_dir_path}/{filename}").convert("RGB").resize((224, 224))
+
+        image = preprocess(image)
+        sentence = self.sentences[idx]
+
+        return self.item_no_list[idx], image, sentence, torch.tensor(self.labels[idx], dtype=torch.long)
 
 
 class CustomDatasetWithProcessor(Dataset):
@@ -53,7 +56,7 @@ class CustomDatasetWithProcessor(Dataset):
 
     def __getitem__(self, idx):
         filename = self.image_paths[idx].replace('https://img.29cm.co.kr', '').rpartition('/')[-1]
-        image = Image.open(f'../data/product/images/{filename}').convert("RGB").resize((224, 224))
+        image = Image.open(f"{image_dir_path}/{filename}").convert("RGB").resize((224, 224))
 
         inputs = clip_processor(
             images=self.agument(image),
@@ -82,7 +85,7 @@ class CustomDatasetWithOutProcessor(Dataset):
 
     def __getitem__(self, idx):
         filename = self.image_paths[idx].replace('https://img.29cm.co.kr', '').rpartition('/')[-1]
-        image = Image.open(f'../data/product/images/{filename}').convert("RGB").resize((224, 224))
+        image = Image.open(f"{image_dir_path}/{filename}").convert("RGB").resize((224, 224))
         image = self.transform(image)
 
         return self.item_no_list[idx], image, self.sentences[idx], torch.tensor(self.labels[idx], dtype=torch.long)
@@ -98,7 +101,7 @@ def get_dataset(item_no_list, image_paths, sentences, labels, dataset_name=''):
     dataset_dict = {
         'CustomDatasetWithProcessor': CustomDatasetWithProcessor(item_no_list, image_paths, sentences, max_length, labels),
         'CustomDatasetWithOutProcessor': CustomDatasetWithOutProcessor(item_no_list, image_paths, sentences, labels),
-        # 'CustomDatasetWithPreprocessor': CustomDatasetWithPreprocessor(item_no_list, image_paths, sentences, labels)
+        'CustomDatasetWithPreprocessor': CustomDatasetWithPreprocessor(item_no_list, image_paths, sentences, labels)
     }
 
     return dataset_dict[dataset_name]
